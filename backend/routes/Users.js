@@ -1,33 +1,50 @@
 const router = require('express').Router();
-const {User,validate} = require('../model/User');
+const {User, validate} = require('../model/User');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
 // Register route
-router.post('/register', async (req ,res) => {
-    try{
+router.post('/register', async (req, res) => {
+    try {
+        // Validate request body
         const {error} = validate(req.body);
-        if(error) 
+        if (error) 
             return res.status(400).send(error.details[0].message);
 
+        // Check if user already exists
         let user = await User.findOne({email: req.body.email});
-        if(user) 
+        if (user) 
             return res.status(400).send('User already registered');
 
-        const salt= await bcrypt.genSalt(Number(process.env.SALT_ROUNDS));
-        const hashPassword = await bcrypt.hash(req.body.password,salt);
-        user = await new User({...req.body, password: hashPassword}).save();
+        // Create new user
+        const salt = await bcrypt.genSalt(Number(process.env.SALT) || 10);
+        const hashPassword = await bcrypt.hash(req.body.password, salt);
         
-        const token = user.generateAuthToken();
-        res.header('x-auth-token', token).send({
-            _id: user._id,
-            firstname: user.firstname,
-            lastname: user.lastname,
-            email: user.email
+        user = new User({
+            firstname: req.body.firstname,
+            lastname: req.body.lastname,
+            email: req.body.email,
+            password: hashPassword
         });
-    } catch(err) {
-        console.log(err);
-        res.status(500).send('Something went wrong');
+
+        await user.save();
+        
+        // Generate auth token
+        const token = user.generateAuthToken();
+        
+        // Send response
+        res.status(201).json({
+            token,
+            user: {
+                _id: user._id,
+                firstname: user.firstname,
+                lastname: user.lastname,
+                email: user.email
+            }
+        });
+    } catch (err) {
+        console.error('Register error:', err);
+        res.status(500).send('Error: ' + err.message);
     }
 });
 
@@ -48,6 +65,8 @@ router.post('/login', async (req, res) => {
         
         // Generate token
         const token = user.generateAuthToken();
+        
+        // Send response
         res.json({
             token,
             user: {
@@ -58,8 +77,8 @@ router.post('/login', async (req, res) => {
             }
         });
     } catch (err) {
-        console.log(err);
-        res.status(500).send('Something went wrong');
+        console.error('Login error:', err);
+        res.status(500).send('Error: ' + err.message);
     }
 });
 
