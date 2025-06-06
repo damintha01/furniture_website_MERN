@@ -1,12 +1,12 @@
 //api tika hadagnne methana express eke tiyana router() kiyana function eken
 
 const router = require('express').Router();
-//product.js eka gnnwa methanata
-let Product = require('../model/Product');
+const Product = require('../model/Product');
+const auth = require('../middleware/auth');
 
 // Get all products
 //http://localhost:5000/products/
-router.route('/').get((req, res) => {
+router.route('/').get(auth, (req, res) => {
     Product.find()
         .then(products => res.json(products))
         .catch(err => res.status(400).json('Error: ' + err)); 
@@ -14,7 +14,7 @@ router.route('/').get((req, res) => {
 
 // Add a new product
 //http://localhost:5000/products/add
-router.route('/add').post((req,res)=>{
+router.route('/add').post(auth, (req,res)=>{
     const name = req.body.name; 
     const description = req.body.description;
     const price = Number(req.body.price);
@@ -39,7 +39,7 @@ router.route('/add').post((req,res)=>{
 // Get a product by Name
 //http://localhost:5000/products/:id
 
-router.route('/:id').get((req, res) => {
+router.route('/:id').get(auth, (req, res) => {
     Product.findOne({ _id: req.params.id })
         .then(product => res.json(product))
         .catch(err => res.status(400).json('Error: ' + err));
@@ -48,7 +48,7 @@ router.route('/:id').get((req, res) => {
 // Delete a product by Name
 //http://localhost:5050/products/delete/:id
 
-router.route('/delete/:id').delete(async(req, res) => {
+router.route('/delete/:id').delete(auth, async(req, res) => {
     try {
         let userId = req.params.id; //backend  eke idn ena userid eka gnnw
         const deletedProduct = await Product.findByIdAndDelete(userId);
@@ -67,7 +67,7 @@ router.route('/delete/:id').delete(async(req, res) => {
 // Update a product
 //http://localhost:5000/products/update/:id
 
-router.route('/update/:id').put(async(req, res) => {
+router.route('/update/:id').put(auth, async(req, res) => {
 
     let userId=req.params.id; //backend  eke idn ena userid eka gnnw
     const{name,description,price,image,category}=req.body; //frontend eke idn ena ewa gnnwa

@@ -24,12 +24,16 @@ connection.once('open',()=>{
     console.log("MongoDB connection success");
 });
 
+// Routes
+const userRouter = require('./routes/Users');
+const productRouter = require('./routes/Products');
 
-
+app.use('/api/users', userRouter);
+app.use('/api/products', productRouter);
 
 app.listen(PORT,()=>{
     console.log(`Server is running on port ${PORT}`);
-}); 
+});
 
 
 
