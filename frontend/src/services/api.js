@@ -1,10 +1,35 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5050/api';
+// Function to check server availability and get the correct port
+const findServerPort = async () => {
+    const BASE_PORT = 5050;
+    const MAX_PORT_ATTEMPTS = 10;
+
+    for (let port = BASE_PORT; port < BASE_PORT + MAX_PORT_ATTEMPTS; port++) {
+        try {
+            const response = await fetch(`http://localhost:${port}/api/users`);
+            if (response.ok || response.status === 401) { // 401 means server is running but requires auth
+                return port;
+            }
+        } catch (error) {
+            continue;
+        }
+    }
+    throw new Error('Server not found on any port');
+};
+
+let API_URL = 'http://localhost:5050/api';
 
 const api = axios.create({
     baseURL: API_URL,
-    timeout: 5000, // 5 second timeout
+});
+
+// Update baseURL if server is running on a different port
+findServerPort().then(port => {
+    API_URL = `http://localhost:${port}/api`;
+    api.defaults.baseURL = API_URL;
+}).catch(error => {
+    console.error('Server connection error:', error);
 });
 
 // Add request interceptor

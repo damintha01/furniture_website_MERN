@@ -7,7 +7,9 @@ dotenv.config();
 
 const app = express();
 
-const PORT = process.env.PORT || 5060;
+// Define a range of ports to try
+const BASE_PORT = 5050;
+const MAX_PORT_ATTEMPTS = 10;
 
 // CORS configuration
 app.use(cors({
@@ -29,13 +31,12 @@ const connectDB = async () => {
         await mongoose.connect(URL, {
             useNewUrlParser: true,
             useUnifiedTopology: true,
-            serverSelectionTimeoutMS: 5000, // Timeout after 5s
-            socketTimeoutMS: 45000, // Close sockets after 45s
+            serverSelectionTimeoutMS: 5000,
+            socketTimeoutMS: 45000,
         });
         console.log("MongoDB connected successfully");
     } catch (err) {
         console.error("MongoDB connection error:", err);
-        // Retry connection after 5 seconds
         setTimeout(connectDB, 5000);
     }
 };
@@ -61,44 +62,39 @@ app.use('/api/products', productRouter);
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);
-    
     if (err.name === 'MongoError' || err.name === 'MongooseError') {
-        return res.status(503).json({
-            message: 'Database error. Please try again later.'
-        });
+        return res.status(503).json({ message: 'Database error. Please try again later.' });
     }
-    
     if (err.name === 'ValidationError') {
-        return res.status(400).json({
-            message: err.message
+        return res.status(400).json({ message: err.message });
+    }
+    res.status(500).json({ message: 'Something went wrong on the server.' });
+});
+
+// Function to start server on an available port
+const startServer = (port) => {
+    const server = app.listen(port)
+        .on('error', (err) => {
+            if (err.code === 'EADDRINUSE') {
+                if (port < BASE_PORT + MAX_PORT_ATTEMPTS) {
+                    console.log(`Port ${port} is busy, trying port ${port + 1}`);
+                    startServer(port + 1);
+                } else {
+                    console.error('No available ports found in range');
+                    process.exit(1);
+                }
+            } else {
+                console.error('Server error:', err);
+            }
+        })
+        .on('listening', () => {
+            const actualPort = server.address().port;
+            console.log(`Server is running on port ${actualPort}`);
         });
-    }
-    
-    res.status(500).json({
-        message: 'Something went wrong on the server.'
-    });
-});
+};
 
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (err) => {
-    console.error('Unhandled Promise Rejection:', err);
-});
-
-const server = app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-});
-
-// Handle server errors
-server.on('error', (err) => {
-    console.error('Server error:', err);
-    if (err.code === 'EADDRINUSE') {
-        console.log('Port is busy, retrying on a different port...');
-        setTimeout(() => {
-            server.close();
-            server.listen(PORT + 1);
-        }, 1000);
-    }
-});
+// Start the server
+startServer(BASE_PORT);
 
 
 
